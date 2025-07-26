@@ -13,7 +13,8 @@ import {
   Brain,
   Sparkles,
   Tag,
-  BookOpen
+  BookOpen,
+  Edit3
 } from "lucide-react";
 import gsap from "gsap";
 
@@ -65,7 +66,9 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [newNote, setNewNote] = useState({ title: "", content: "", tags: "" });
+  const [editingNote, setEditingNote] = useState({ title: "", content: "", tags: "" });
 
   const notesRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -105,10 +108,51 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
     }
   };
 
+  const updateNote = () => {
+    if (selectedNote && editingNote.title.trim() && editingNote.content.trim()) {
+      setNotes(notes.map(note => 
+        note.id === selectedNote.id 
+          ? {
+              ...note,
+              title: editingNote.title,
+              content: editingNote.content,
+              tags: editingNote.tags.split(",").map(tag => tag.trim()).filter(Boolean)
+            }
+          : note
+      ));
+      setSelectedNote({
+        ...selectedNote,
+        title: editingNote.title,
+        content: editingNote.content,
+        tags: editingNote.tags.split(",").map(tag => tag.trim()).filter(Boolean)
+      });
+      setIsEditing(false);
+    }
+  };
+
+  const startEditing = () => {
+    if (selectedNote) {
+      setEditingNote({
+        title: selectedNote.title,
+        content: selectedNote.content,
+        tags: selectedNote.tags.join(", ")
+      });
+      setIsEditing(true);
+    }
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditingNote({ title: "", content: "", tags: "" });
+  };
+
   const toggleStar = (noteId: string) => {
     setNotes(notes.map(note => 
       note.id === noteId ? { ...note, isStarred: !note.isStarred } : note
     ));
+    if (selectedNote && selectedNote.id === noteId) {
+      setSelectedNote({ ...selectedNote, isStarred: !selectedNote.isStarred });
+    }
   };
 
   const generateAINote = () => {
@@ -279,56 +323,105 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
           </div>
         ) : selectedNote ? (
           <div ref={editorRef} className="h-full p-6 glass">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{selectedNote.title}</h1>
-                {selectedNote.aiGenerated && (
-                  <Badge variant="secondary" className="bg-cosmic-purple/20 text-cosmic-purple">
-                    <Brain className="h-3 w-3 mr-1" />
-                    AI Generated
-                  </Badge>
-                )}
+            {isEditing ? (
+              // Edit Mode
+              <div className="space-y-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold">Edit Note</h2>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={cancelEditing}>
+                      Cancel
+                    </Button>
+                    <Button variant="cosmic" onClick={updateNote}>
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+                
+                <Input
+                  placeholder="Note title..."
+                  value={editingNote.title}
+                  onChange={(e) => setEditingNote({ ...editingNote, title: e.target.value })}
+                  className="text-lg font-semibold glass"
+                />
+                
+                <Input
+                  placeholder="Tags (comma separated)..."
+                  value={editingNote.tags}
+                  onChange={(e) => setEditingNote({ ...editingNote, tags: e.target.value })}
+                  className="glass"
+                />
+                
+                <Textarea
+                  placeholder="Edit your note content..."
+                  value={editingNote.content}
+                  onChange={(e) => setEditingNote({ ...editingNote, content: e.target.value })}
+                  className="min-h-96 glass"
+                />
               </div>
-              
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="neon" 
-                  size="sm"
-                  onClick={() => onSectionChange("solar")}
-                >
-                  <Brain className="h-4 w-4 mr-2" />
-                  View in Graph
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => toggleStar(selectedNote.id)}
-                >
-                  <Star className={`h-4 w-4 ${selectedNote.isStarred ? 'fill-cosmic-orange text-cosmic-orange' : ''}`} />
-                </Button>
-              </div>
-            </div>
+            ) : (
+              // View Mode
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold">{selectedNote.title}</h1>
+                    {selectedNote.aiGenerated && (
+                      <Badge variant="secondary" className="bg-cosmic-purple/20 text-cosmic-purple">
+                        <Brain className="h-3 w-3 mr-1" />
+                        AI Generated
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={startEditing}
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="neon" 
+                      size="sm"
+                      onClick={() => onSectionChange("solar")}
+                    >
+                      <Brain className="h-4 w-4 mr-2" />
+                      View in Graph
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleStar(selectedNote.id)}
+                    >
+                      <Star className={`h-4 w-4 ${selectedNote.isStarred ? 'fill-cosmic-orange text-cosmic-orange' : ''}`} />
+                    </Button>
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-4 mb-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                Created {selectedNote.createdAt}
-              </div>
-              <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4" />
-                {selectedNote.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+                <div className="flex items-center gap-4 mb-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    Created {selectedNote.createdAt}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    {selectedNote.tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="prose prose-invert max-w-none">
-              <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-                {selectedNote.content}
-              </p>
-            </div>
+                <div className="prose prose-invert max-w-none">
+                  <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                    {selectedNote.content}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center glass">

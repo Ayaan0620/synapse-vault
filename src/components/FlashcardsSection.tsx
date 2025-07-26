@@ -144,9 +144,7 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
         : card
     ));
 
-    setTimeout(() => {
-      nextCard();
-    }, 500);
+    // Don't auto-advance - let user control when to go to next card
   };
 
   const shuffleCards = () => {
