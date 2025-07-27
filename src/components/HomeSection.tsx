@@ -114,7 +114,7 @@ export const HomeSection = ({ onSectionChange }: HomeSectionProps) => {
           <Sparkles className="floating-icon absolute top-2 left-1/3 h-5 w-5 text-cosmic-pink opacity-50" />
           
           <h1 className="text-6xl md:text-8xl font-bold mb-6">
-            <span className="gradient-text">Cosmic</span>
+            <span className="gradient-text">Skibidi</span>
             <br />
             <span className="text-foreground">Notes</span>
           </h1>
