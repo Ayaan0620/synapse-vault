@@ -8,7 +8,11 @@ import {
   Calculator, 
   Home,
   Menu,
-  X
+  X,
+  FileText,
+  Network,
+  Layers,
+  MessageCircle
 } from "lucide-react";
 
 interface NavigationProps {
@@ -21,10 +25,12 @@ export const Navigation = ({ activeSection, onSectionChange }: NavigationProps) 
 
   const navItems = [
     { id: "home", label: "Home", icon: Home },
-    { id: "notes", label: "Notes", icon: BookOpen },
-    { id: "solar", label: "Knowledge Graph", icon: Brain },
-    { id: "flashcards", label: "Flashcards", icon: Zap },
+    { id: "notes", label: "Notes", icon: FileText },
+    { id: "solar", label: "Knowledge Graph", icon: Network },
+    { id: "flashcards", label: "Flashcards", icon: Layers },
     { id: "formulas", label: "Formulas", icon: Calculator },
+    { id: "pyqs", label: "PYQs & Exams", icon: BookOpen },
+    { id: "doubts", label: "AI Doubts", icon: MessageCircle },
   ];
 
   useEffect(() => {

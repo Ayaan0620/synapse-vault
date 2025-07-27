@@ -5,6 +5,8 @@ import { NotesSection } from "@/components/NotesSection";
 import { SolarSystemSection } from "@/components/SolarSystemSection";
 import { FlashcardsSection } from "@/components/FlashcardsSection";
 import { FormulasSection } from "@/components/FormulasSection";
+import { PYQSection } from "@/components/PYQSection";
+import { DoubtsClearingSection } from "@/components/DoubtsClearingSection";
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState("home");
@@ -21,6 +23,10 @@ const Index = () => {
         return <FlashcardsSection onSectionChange={setActiveSection} />;
       case "formulas":
         return <FormulasSection onSectionChange={setActiveSection} />;
+      case "pyqs":
+        return <PYQSection onSectionChange={setActiveSection} />;
+      case "doubts":
+        return <DoubtsClearingSection onSectionChange={setActiveSection} />;
       default:
         return <HomeSection onSectionChange={setActiveSection} />;
     }
