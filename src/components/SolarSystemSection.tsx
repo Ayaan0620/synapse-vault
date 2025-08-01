@@ -1,31 +1,41 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import {
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
   ReactFlow,
-  Node,
-  Edge,
+  MiniMap,
+  Controls,
+  Background,
   useNodesState,
   useEdgesState,
   addEdge,
   Connection,
-  Background,
-  Controls,
-  MiniMap,
-  NodeProps,
+  Edge,
+  Node,
   Handle,
-  Position,
-} from "@xyflow/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit3, Save, X, Trash2 } from "lucide-react";
+  Position
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { 
+  Plus, 
+  Edit3, 
+  Save, 
+  X, 
+  Search,
+  BookOpen,
+  Brain,
+  Network
+} from "lucide-react";
 import { toast } from "sonner";
 
-interface NoteNodeData {
-  label: string;
+interface NoteNodeData extends Record<string, unknown> {
+  title: string;
   content: string;
-  category: string;
   tags: string[];
 }
 
@@ -33,318 +43,284 @@ interface SolarSystemSectionProps {
   onSectionChange: (section: string) => void;
 }
 
-// Custom Node Component
-const ObsidianNode = ({ data, selected }: any) => {
+// Custom Note Node Component
+const NoteNode = ({ data, id }: { data: NoteNodeData; id: string }) => {
   return (
-    <div className={`px-4 py-2 shadow-md rounded-md bg-background border-2 transition-all ${
-      selected ? 'border-primary shadow-lg scale-105' : 'border-muted'
-    }`}>
-      <Handle type="target" position={Position.Top} className="w-2 h-2" />
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2" />
-      <Handle type="target" position={Position.Left} className="w-2 h-2" />
-      <Handle type="source" position={Position.Right} className="w-2 h-2" />
+    <div className="glass px-4 py-3 min-w-[200px] max-w-[250px] rounded-lg border-primary/30 hover:border-primary/60 transition-all duration-300 hover:scale-105">
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-primary border-2 border-background" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-primary border-2 border-background" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-primary border-2 border-background" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-primary border-2 border-background" />
       
-      <div className="text-center">
-        <div className="font-semibold text-sm">{data?.label}</div>
-        <div className="text-xs text-muted-foreground mt-1">
-          {data?.category}
+      <div className="space-y-2">
+        <h3 className="font-semibold text-foreground text-sm line-clamp-2">
+          {String(data.title)}
+        </h3>
+        <p className="text-xs text-muted-foreground line-clamp-3">
+          {String(data.content)}
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {Array.isArray(data.tags) && data.tags.map((tag, index) => (
+            <Badge key={index} variant="secondary" className="text-xs px-1 py-0">
+              {String(tag)}
+            </Badge>
+          ))}
         </div>
       </div>
     </div>
   );
 };
 
+const nodeTypes = {
+  noteNode: NoteNode,
+};
+
+const initialNodes: Node<NoteNodeData>[] = [
+  {
+    id: '1',
+    type: 'noteNode',
+    position: { x: 250, y: 100 },
+    data: { title: 'Physics Notes', content: 'Quantum mechanics and wave functions', tags: ['physics', 'quantum'] },
+  },
+  {
+    id: '2',
+    type: 'noteNode',
+    position: { x: 100, y: 300 },
+    data: { title: 'Mathematics', content: 'Calculus and differential equations', tags: ['math', 'calculus'] },
+  },
+  {
+    id: '3',
+    type: 'noteNode',
+    position: { x: 400, y: 300 },
+    data: { title: 'Chemistry', content: 'Organic chemistry reactions', tags: ['chemistry', 'organic'] },
+  },
+];
+
+const initialEdges: Edge[] = [
+  { 
+    id: 'e1-2', 
+    source: '1', 
+    target: '2', 
+    type: 'smoothstep',
+    animated: true,
+    style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
+    label: 'related'
+  },
+  { 
+    id: 'e1-3', 
+    source: '1', 
+    target: '3', 
+    type: 'smoothstep',
+    style: { stroke: 'hsl(var(--accent))', strokeWidth: 2 },
+    label: 'connected'
+  },
+];
+
 export const SolarSystemSection = ({ onSectionChange }: SolarSystemSectionProps) => {
-  const initialNodes: Node<NoteNodeData>[] = [
-    {
-      id: "1",
-      type: "obsidian",
-      position: { x: 250, y: 250 },
-      data: { label: "Machine Learning", content: "Introduction to ML concepts...", category: "AI", tags: ["algorithms", "data"] },
-    },
-    {
-      id: "2", 
-      type: "obsidian",
-      position: { x: 100, y: 100 },
-      data: { label: "Neural Networks", content: "Deep learning fundamentals...", category: "AI", tags: ["deep learning", "neurons"] },
-    },
-    {
-      id: "3",
-      type: "obsidian", 
-      position: { x: 400, y: 150 },
-      data: { label: "Data Structures", content: "Arrays, trees, graphs...", category: "CS", tags: ["algorithms", "programming"] },
-    },
-  ];
-
-  const initialEdges: Edge[] = [
-    { id: "e1-2", source: "1", target: "2", animated: true, style: { stroke: 'hsl(var(--accent))' } },
-    { id: "e1-3", source: "1", target: "3", animated: true, style: { stroke: 'hsl(var(--primary))' } },
-  ];
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes as Node[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [selectedNode, setSelectedNode] = useState<any>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [newNodeForm, setNewNodeForm] = useState({
-    label: "",
-    content: "",
-    category: "General",
-    tags: ""
-  });
+  const [selectedNode, setSelectedNode] = useState<Node<NoteNodeData> | null>(null);
+  const [editingNode, setEditingNode] = useState<Node<NoteNodeData> | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newNode, setNewNode] = useState({ title: '', content: '', tags: '' });
+  
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  const nodeTypes = { obsidian: ObsidianNode };
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
 
-  const onConnect = useCallback((params: Connection) => {
-    setEdges((eds) => addEdge(params, eds));
-  }, [setEdges]);
-
-  const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
-    setSelectedNode(node);
-  }, []);
-
-  const createNode = () => {
-    if (!newNodeForm.label.trim()) return;
-    
-    const newNode: Node<NoteNodeData> = {
-      id: Date.now().toString(),
-      type: "obsidian",
-      position: { x: Math.random() * 300 + 200, y: Math.random() * 200 + 150 },
+  const addNode = () => {
+    const newNodeData: Node<NoteNodeData> = {
+      id: `${Date.now()}`,
+      type: 'noteNode',
+      position: { x: Math.random() * 400, y: Math.random() * 400 },
       data: {
-        label: newNodeForm.label,
-        content: newNodeForm.content,
-        category: newNodeForm.category,
-        tags: newNodeForm.tags.split(",").map(t => t.trim()).filter(Boolean)
-      }
+        title: newNode.title,
+        content: newNode.content,
+        tags: newNode.tags.split(',').map(tag => tag.trim()),
+      },
     };
 
-    setNodes((nds) => [...nds, newNode]);
-    setNewNodeForm({ label: "", content: "", category: "General", tags: "" });
+    setNodes((nds) => [...nds, newNodeData as Node]);
+    setNewNode({ title: '', content: '', tags: '' });
     setIsCreating(false);
-    toast.success("Node created successfully!");
+    toast.success("Note added to knowledge graph!");
   };
 
   const updateNode = () => {
-    if (!selectedNode || !newNodeForm.label.trim()) return;
-
-    setNodes((nds) => nds.map(node => 
-      node.id === selectedNode.id 
-        ? {
+    if (!editingNode) return;
+    
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === editingNode.id) {
+          return {
             ...node,
             data: {
-              label: newNodeForm.label,
-              content: newNodeForm.content,
-              category: newNodeForm.category,
-              tags: newNodeForm.tags.split(",").map(t => t.trim()).filter(Boolean)
-            }
-          }
-        : node
-    ));
+              ...node.data,
+              title: newNode.title,
+              content: newNode.content,
+              tags: newNode.tags.split(',').map(tag => tag.trim()),
+            },
+          } as Node;
+        }
+        return node;
+      })
+    );
     
-    setIsEditing(false);
-    setSelectedNode(null);
-    toast.success("Node updated successfully!");
+    setEditingNode(null);
+    setNewNode({ title: '', content: '', tags: '' });
+    toast.success("Note updated!");
   };
 
-  const deleteNode = () => {
-    if (!selectedNode) return;
+  const filteredNodes = nodes.filter((node) => {
+    const nodeData = node.data as Record<string, unknown>;
+    const title = String(nodeData.title || '');
+    const content = String(nodeData.content || '');
+    const tags = Array.isArray(nodeData.tags) ? nodeData.tags : [];
     
-    setNodes((nds) => nds.filter(n => n.id !== selectedNode.id));
-    setEdges((eds) => eds.filter(e => e.source !== selectedNode.id && e.target !== selectedNode.id));
-    setSelectedNode(null);
-    toast.success("Node deleted successfully!");
-  };
-
-  const startEdit = () => {
-    if (!selectedNode) return;
-    setNewNodeForm({
-      label: selectedNode.data.label,
-      content: selectedNode.data.content,
-      category: selectedNode.data.category,
-      tags: selectedNode.data.tags.join(", ")
-    });
-    setIsEditing(true);
-  };
-
-  const filteredNodes = nodes.filter(node => 
-    node.data.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    node.data.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+    return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           tags.some((tag: unknown) => String(tag).toLowerCase().includes(searchTerm.toLowerCase()));
+  });
 
   return (
     <div className="min-h-screen bg-gradient-cosmic p-6">
-      <div className="max-w-7xl mx-auto h-[calc(100vh-3rem)] flex gap-6">
-        {/* Sidebar */}
-        <div className="w-80 glass-card border-primary/30 p-4 space-y-4 overflow-y-auto">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold gradient-text">Knowledge Graph</h1>
-            <p className="text-muted-foreground text-sm">Obsidian-style connections</p>
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search nodes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Button
-              onClick={() => {
-                setIsCreating(true);
-                setIsEditing(false);
-                setSelectedNode(null);
-                setNewNodeForm({ label: "", content: "", category: "General", tags: "" });
-              }}
-              className="flex-1"
-              variant="cosmic"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Node
-            </Button>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="glass-card p-3 text-center">
-              <div className="text-lg font-bold text-primary">{nodes.length}</div>
-              <div className="text-xs text-muted-foreground">Nodes</div>
-            </div>
-            <div className="glass-card p-3 text-center">
-              <div className="text-lg font-bold text-accent">{edges.length}</div>
-              <div className="text-xs text-muted-foreground">Connections</div>
-            </div>
-          </div>
-
-          {/* Create/Edit Form */}
-          {(isCreating || isEditing) && (
-            <Card className="glass-card border-primary/30">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center justify-between">
-                  {isEditing ? "Edit Node" : "Create Node"}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setIsCreating(false);
-                      setIsEditing(false);
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Input
-                  placeholder="Node title..."
-                  value={newNodeForm.label}
-                  onChange={(e) => setNewNodeForm({ ...newNodeForm, label: e.target.value })}
-                />
-                <select
-                  value={newNodeForm.category}
-                  onChange={(e) => setNewNodeForm({ ...newNodeForm, category: e.target.value })}
-                  className="w-full p-2 border rounded-md bg-background"
-                >
-                  <option value="General">General</option>
-                  <option value="AI">AI</option>
-                  <option value="CS">Computer Science</option>
-                  <option value="Math">Mathematics</option>
-                </select>
-                <Input
-                  placeholder="Tags (comma-separated)..."
-                  value={newNodeForm.tags}
-                  onChange={(e) => setNewNodeForm({ ...newNodeForm, tags: e.target.value })}
-                />
-                <Textarea
-                  placeholder="Node content..."
-                  value={newNodeForm.content}
-                  onChange={(e) => setNewNodeForm({ ...newNodeForm, content: e.target.value })}
-                  className="h-24"
-                />
-                <Button
-                  onClick={isEditing ? updateNode : createNode}
-                  className="w-full"
-                  variant="cosmic"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {isEditing ? "Update" : "Create"}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Selected Node Info */}
-          {selectedNode && !isEditing && (
-            <Card className="glass-card border-primary/30">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center justify-between">
-                  {selectedNode.data.label}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSelectedNode(null)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {selectedNode.data.content}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {selectedNode.data.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={startEdit} size="sm" className="flex-1">
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button onClick={deleteNode} size="sm" variant="destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold gradient-text">Knowledge Graph</h1>
+          <p className="text-muted-foreground">Visualize and connect your learning concepts</p>
         </div>
 
-        {/* Graph Canvas */}
-        <div className="flex-1 glass-card border-primary/30 rounded-lg overflow-hidden">
-          <ReactFlow
-            nodes={filteredNodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            nodeTypes={nodeTypes}
-            fitView
-            className="bg-background"
-          >
-            <Background color="hsl(var(--muted))" gap={20} size={1} />
-            <Controls />
-            <MiniMap
-              nodeColor={(node: any) => {
-                switch (node.data?.category) {
-                  case 'AI': return 'hsl(var(--primary))';
-                  case 'CS': return 'hsl(var(--accent))';
-                  case 'Math': return 'hsl(var(--secondary))';
-                  default: return 'hsl(var(--muted-foreground))';
-                }
-              }}
-            />
-          </ReactFlow>
+        {/* Controls */}
+        <div className="flex flex-wrap gap-4 justify-between items-center">
+          <div className="flex gap-4 items-center">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search notes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-64"
+              />
+            </div>
+            
+            <Dialog open={isCreating} onOpenChange={setIsCreating}>
+              <DialogTrigger asChild>
+                <Button variant="cosmic" className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Note
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Note</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Note title..."
+                    value={newNode.title}
+                    onChange={(e) => setNewNode({ ...newNode, title: e.target.value })}
+                  />
+                  <Textarea
+                    placeholder="Note content..."
+                    value={newNode.content}
+                    onChange={(e) => setNewNode({ ...newNode, content: e.target.value })}
+                    rows={4}
+                  />
+                  <Input
+                    placeholder="Tags (comma separated)..."
+                    value={newNode.tags}
+                    onChange={(e) => setNewNode({ ...newNode, tags: e.target.value })}
+                  />
+                  <Button onClick={addNode} className="w-full" variant="cosmic">
+                    Create Note
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="flex gap-2">
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Network className="w-3 h-3" />
+              {nodes.length} Notes
+            </Badge>
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Brain className="w-3 h-3" />
+              {edges.length} Connections
+            </Badge>
+          </div>
+        </div>
+
+        {/* Knowledge Graph */}
+        <Card className="glass-card border-primary/30 h-[600px]">
+          <CardContent className="p-0 h-full">
+            <div className="w-full h-full" ref={reactFlowWrapper}>
+              <ReactFlow
+                nodes={searchTerm ? filteredNodes : nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                nodeTypes={nodeTypes}
+                fitView
+                className="cosmic-flow"
+                style={{ background: 'transparent' }}
+              >
+                <Background color="hsl(var(--primary) / 0.1)" />
+                <MiniMap 
+                  nodeColor="hsl(var(--primary))"
+                  className="glass border border-primary/20"
+                />
+                <Controls className="glass border border-primary/20" />
+              </ReactFlow>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card className="glass-card border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-primary" />
+                Total Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">{nodes.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-card border-accent/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Network className="w-4 h-4 text-accent" />
+                Connections
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-accent">{edges.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-card border-secondary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Brain className="w-4 h-4 text-secondary" />
+                Graph Density
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-secondary">
+                {nodes.length > 1 ? Math.round((edges.length / (nodes.length * (nodes.length - 1) / 2)) * 100) : 0}%
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
