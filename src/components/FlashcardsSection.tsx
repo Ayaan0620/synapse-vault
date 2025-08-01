@@ -77,12 +77,20 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
 
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studyMode, setStudyMode] = useState<"browse" | "study">("browse");
+  const [studyMode, setStudyMode] = useState<"browse" | "study" | "spaced">("browse");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showAnswer, setShowAnswer] = useState(false);
-  const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
+  const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0, streak: 0, bestStreak: 0 });
+  const [autoPlay, setAutoPlay] = useState(false);
+  const [autoPlaySpeed, setAutoPlaySpeed] = useState(3000);
+  const [studyTimer, setStudyTimer] = useState(0);
+  const [isStudyTimerRunning, setIsStudyTimerRunning] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
+  const frontRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
 
   const categories = Array.from(new Set(flashcards.map(card => card.category)));
   const filteredCards = selectedCategory === "all" 
@@ -91,23 +99,86 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
 
   const currentCard = filteredCards[currentCardIndex];
 
+  // Enhanced 3D flip animation
   useEffect(() => {
     const ctx = gsap.context(() => {
-      if (cardRef.current) {
-        gsap.fromTo(cardRef.current, 
-          { rotationY: 0, scale: 1 },
-          { 
-            rotationY: isFlipped ? 180 : 0, 
-            duration: 0.6, 
-            ease: "power2.inOut",
-            transformStyle: "preserve-3d"
-          }
-        );
+      if (frontRef.current && backRef.current) {
+        if (isFlipped) {
+          // Flip to back
+          gsap.to(frontRef.current, {
+            rotationY: -90,
+            duration: 0.3,
+            ease: "power2.in",
+            onComplete: () => {
+              gsap.set(frontRef.current, { rotationY: 90 });
+              gsap.to(frontRef.current, { rotationY: 180, duration: 0.3, ease: "power2.out" });
+            }
+          });
+          
+          gsap.set(backRef.current, { rotationY: -90 });
+          gsap.to(backRef.current, {
+            rotationY: 0,
+            duration: 0.3,
+            delay: 0.3,
+            ease: "power2.out"
+          });
+        } else {
+          // Flip to front
+          gsap.to(backRef.current, {
+            rotationY: 90,
+            duration: 0.3,
+            ease: "power2.in",
+            onComplete: () => {
+              gsap.set(backRef.current, { rotationY: -90 });
+              gsap.to(backRef.current, { rotationY: -180, duration: 0.3, ease: "power2.out" });
+            }
+          });
+          
+          gsap.set(frontRef.current, { rotationY: 90 });
+          gsap.to(frontRef.current, {
+            rotationY: 0,
+            duration: 0.3,
+            delay: 0.3,
+            ease: "power2.out"
+          });
+        }
       }
     });
 
     return () => ctx.revert();
   }, [isFlipped]);
+
+  // Study timer
+  useEffect(() => {
+    if (isStudyTimerRunning && studyMode === "study") {
+      timerRef.current = setInterval(() => {
+        setStudyTimer(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isStudyTimerRunning, studyMode]);
+
+  // Auto-play functionality
+  useEffect(() => {
+    if (autoPlay && studyMode === "study") {
+      autoPlayRef.current = setTimeout(() => {
+        if (!isFlipped) {
+          flipCard();
+        } else {
+          nextCard();
+        }
+      }, autoPlaySpeed);
+    }
+
+    return () => {
+      if (autoPlayRef.current) clearTimeout(autoPlayRef.current);
+    };
+  }, [autoPlay, isFlipped, currentCardIndex, autoPlaySpeed, studyMode]);
 
   const flipCard = () => {
     setIsFlipped(!isFlipped);
@@ -127,10 +198,15 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
   };
 
   const markAnswer = (correct: boolean) => {
-    setSessionStats(prev => ({
-      correct: prev.correct + (correct ? 1 : 0),
-      total: prev.total + 1
-    }));
+    setSessionStats(prev => {
+      const newStreak = correct ? prev.streak + 1 : 0;
+      return {
+        correct: prev.correct + (correct ? 1 : 0),
+        total: prev.total + 1,
+        streak: newStreak,
+        bestStreak: Math.max(prev.bestStreak, newStreak)
+      };
+    });
 
     // Update card statistics
     setFlashcards(prev => prev.map(card => 
@@ -144,7 +220,32 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
         : card
     ));
 
-    // Don't auto-advance - let user control when to go to next card
+    // Auto-advance to next card after marking
+    setTimeout(() => {
+      if (!autoPlay) nextCard();
+    }, 1500);
+  };
+
+  const formatStudyTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const startSpacedRepetition = () => {
+    // Sort cards by review urgency (least recent first, lowest accuracy first)
+    const sortedCards = [...flashcards].sort((a, b) => {
+      const aUrgency = (a.totalAttempts > 0 ? a.correctCount / a.totalAttempts : 0) - 
+                      (new Date().getTime() - new Date(a.lastReviewed).getTime()) / (1000 * 60 * 60 * 24);
+      const bUrgency = (b.totalAttempts > 0 ? b.correctCount / b.totalAttempts : 0) - 
+                      (new Date().getTime() - new Date(b.lastReviewed).getTime()) / (1000 * 60 * 60 * 24);
+      return aUrgency - bUrgency;
+    });
+    
+    setFlashcards(sortedCards);
+    setStudyMode("spaced");
+    setCurrentCardIndex(0);
+    setIsStudyTimerRunning(true);
   };
 
   const shuffleCards = () => {
@@ -179,13 +280,24 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
             <Zap className="h-6 w-6 text-cosmic-purple" />
             <h1 className="text-3xl font-bold gradient-text">Flashcards</h1>
           </div>
-          <Button 
-            variant="cosmic" 
-            onClick={() => setStudyMode("study")}
-            className="px-6"
-          >
-            Start Study Session
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              variant="cosmic" 
+              onClick={() => setStudyMode("study")}
+              className="px-6"
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Study Session
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={startSpacedRepetition}
+              className="px-6"
+            >
+              <Brain className="h-4 w-4 mr-2" />
+              Spaced Repetition
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -295,7 +407,7 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
           Back to Browse
         </Button>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <div className="text-center">
             <div className="text-2xl font-bold">{currentCardIndex + 1}</div>
             <div className="text-xs text-muted-foreground">of {filteredCards.length}</div>
@@ -311,6 +423,33 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
               {sessionStats.correct}/{sessionStats.total}
             </div>
           </div>
+
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <div className="text-lg font-bold text-cosmic-orange">🔥 {sessionStats.streak}</div>
+              <div className="text-xs text-muted-foreground">Streak</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-lg font-bold text-cosmic-purple">⭐ {sessionStats.bestStreak}</div>
+              <div className="text-xs text-muted-foreground">Best</div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-lg font-bold text-cosmic-blue">{formatStudyTime(studyTimer)}</div>
+              <div className="text-xs text-muted-foreground">Study Time</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm">Auto-play:</label>
+            <input
+              type="checkbox"
+              checked={autoPlay}
+              onChange={(e) => setAutoPlay(e.target.checked)}
+              className="rounded"
+            />
+          </div>
         </div>
       </div>
 
@@ -321,13 +460,17 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
             ref={cardRef}
             className="relative h-96 cursor-pointer"
             onClick={flipCard}
-            style={{ perspective: "1000px" }}
+            style={{ perspective: "1200px" }}
           >
-            <Card className={`
-              absolute inset-0 p-8 flex flex-col justify-center items-center text-center
-              glass cosmic-glow transition-all duration-300 hover:scale-105
-              ${isFlipped ? 'opacity-0' : 'opacity-100'}
-            `}>
+            {/* Front of card */}
+            <Card 
+              ref={frontRef}
+              className="absolute inset-0 p-8 flex flex-col justify-center items-center text-center glass cosmic-glow transition-all duration-300 hover:scale-105"
+              style={{ 
+                backfaceVisibility: "hidden",
+                transformStyle: "preserve-3d"
+              }}
+            >
               <div className="flex items-center gap-2 mb-6">
                 <Badge 
                   variant="secondary" 
@@ -347,11 +490,16 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
               <p className="text-muted-foreground">Click to reveal answer</p>
             </Card>
 
-            <Card className={`
-              absolute inset-0 p-8 flex flex-col justify-center items-center text-center
-              glass neon-glow transition-all duration-300
-              ${isFlipped ? 'opacity-100' : 'opacity-0'}
-            `}>
+            {/* Back of card */}
+            <Card 
+              ref={backRef}
+              className="absolute inset-0 p-8 flex flex-col justify-center items-center text-center glass neon-glow transition-all duration-300"
+              style={{ 
+                backfaceVisibility: "hidden",
+                transformStyle: "preserve-3d",
+                transform: "rotateY(-180deg)"
+              }}
+            >
               <div className="mb-6">
                 <Badge variant="secondary" className="bg-cosmic-blue/20 text-cosmic-blue">
                   Answer
@@ -366,7 +514,7 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
                 <Button 
                   variant="destructive" 
                   onClick={(e) => { e.stopPropagation(); markAnswer(false); }}
-                  className="px-8"
+                  className="px-8 animate-pulse"
                 >
                   <X className="h-4 w-4 mr-2" />
                   Incorrect
@@ -374,7 +522,7 @@ export const FlashcardsSection = ({ onSectionChange }: FlashcardsSectionProps) =
                 <Button 
                   variant="default" 
                   onClick={(e) => { e.stopPropagation(); markAnswer(true); }}
-                  className="px-8 bg-cosmic-green hover:bg-cosmic-green/90"
+                  className="px-8 bg-cosmic-green hover:bg-cosmic-green/90 animate-pulse"
                 >
                   <Check className="h-4 w-4 mr-2" />
                   Correct

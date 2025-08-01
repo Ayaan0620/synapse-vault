@@ -7,6 +7,8 @@ import { FlashcardsSection } from "@/components/FlashcardsSection";
 import { FormulasSection } from "@/components/FormulasSection";
 import { PYQSection } from "@/components/PYQSection";
 import { DoubtsClearingSection } from "@/components/DoubtsClearingSection";
+import { StudyPlannerSection } from "@/components/StudyPlannerSection";
+import { GameifiedLearningSection } from "@/components/GameifiedLearningSection";
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState("home");

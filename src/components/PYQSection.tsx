@@ -105,6 +105,9 @@ export const PYQSection = ({ onSectionChange }: PYQSectionProps) => {
   const [examTimeLimit, setExamTimeLimit] = useState(60); // minutes
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [examStartTime, setExamStartTime] = useState<Date | null>(null);
+  const [timerWarnings, setTimerWarnings] = useState<{ [key: number]: boolean }>({});
+  const [focusMode, setFocusMode] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [wrongQuestions, setWrongQuestions] = useState<Question[]>([]);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -136,20 +139,46 @@ export const PYQSection = ({ onSectionChange }: PYQSectionProps) => {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [isExamMode]);
 
-  // Timer management
+  // Enhanced timer management with warnings
   useEffect(() => {
     if (isTimerRunning && timeRemaining > 0) {
       timerRef.current = setTimeout(() => {
-        setTimeRemaining(prev => prev - 1);
+        setTimeRemaining(prev => {
+          const newTime = prev - 1;
+          
+          // Timer warnings
+          const totalTime = examTimeLimit * 60;
+          const percentage = (newTime / totalTime) * 100;
+          
+          if (percentage <= 25 && !timerWarnings[25]) {
+            setTimerWarnings(prev => ({ ...prev, [25]: true }));
+            toast.warning("⚠️ 25% time remaining!", {
+              description: "Consider reviewing your answers"
+            });
+          } else if (percentage <= 10 && !timerWarnings[10]) {
+            setTimerWarnings(prev => ({ ...prev, [10]: true }));
+            toast.error("🚨 10% time remaining!", {
+              description: "Final review time!"
+            });
+          } else if (percentage <= 5 && !timerWarnings[5]) {
+            setTimerWarnings(prev => ({ ...prev, [5]: true }));
+            toast.error("⏰ 5% time remaining!", {
+              description: "Submit soon!"
+            });
+          }
+          
+          return newTime;
+        });
       }, 1000);
     } else if (timeRemaining === 0 && isTimerRunning) {
+      toast.error("⏰ Time's up! Exam submitted automatically.");
       endExam();
     }
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isTimerRunning, timeRemaining]);
+  }, [isTimerRunning, timeRemaining, examTimeLimit, timerWarnings]);
 
   // Countdown timer
   useEffect(() => {
@@ -186,10 +215,26 @@ export const PYQSection = ({ onSectionChange }: PYQSectionProps) => {
     setIsTimerRunning(true);
     setShowResults(false);
     setQuestionStartTime(Date.now());
+    setExamStartTime(new Date());
+    setTimerWarnings({});
+    setFocusMode(true);
     visibilityRef.current = true;
-    toast.success("🚀 Exam started! Focus mode activated.", {
-      description: "Tab switching will terminate the exam"
+    
+    // Enhanced exam start notification
+    toast.success("🚀 Exam Started!", {
+      description: `${examTimeLimit} minutes • ${questions.length} questions • Focus mode ON`,
+      duration: 3000
     });
+    
+    // Disable right-click and F12 for exam integrity
+    if (focusMode) {
+      document.addEventListener('contextmenu', e => e.preventDefault());
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+          e.preventDefault();
+        }
+      });
+    }
   };
 
   const endExam = () => {

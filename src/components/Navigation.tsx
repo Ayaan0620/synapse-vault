@@ -12,7 +12,9 @@ import {
   FileText,
   Network,
   Layers,
-  MessageCircle
+  MessageCircle,
+  Calendar,
+  Trophy
 } from "lucide-react";
 
 interface NavigationProps {
@@ -31,6 +33,8 @@ export const Navigation = ({ activeSection, onSectionChange }: NavigationProps) 
     { id: "formulas", label: "Formulas", icon: Calculator },
     { id: "pyqs", label: "PYQs & Exams", icon: BookOpen },
     { id: "doubts", label: "AI Doubts", icon: MessageCircle },
+    { id: "planner", label: "Study Planner", icon: Calendar },
+    { id: "arena", label: "Learning Arena", icon: Trophy },
   ];
 
   useEffect(() => {
