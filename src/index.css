@@ -38,27 +38,48 @@ All colors MUST be HSL.
     --cosmic-green: 142 69% 58%;
     --cosmic-orange: 25 95% 53%;
     --gradient-cosmic: linear-gradient(135deg, hsl(var(--cosmic-purple)), hsl(var(--cosmic-blue)));
+    --gradient-aurora: linear-gradient(135deg, hsl(var(--cosmic-pink)), hsl(var(--cosmic-purple)), hsl(var(--cosmic-blue)));
+    --gradient-nebula: linear-gradient(180deg, hsl(var(--cosmic-blue) / 0.1), hsl(var(--cosmic-purple) / 0.1));
     --glass-bg: hsl(var(--background) / 0.7);
     --glass-border: hsl(var(--border) / 0.3);
+    --shadow-cosmic: 0 8px 32px hsl(var(--cosmic-purple) / 0.2);
+    --shadow-neon: 0 0 30px hsl(var(--cosmic-blue) / 0.4);
     --radius: 0.75rem;
   }
 
   .light {
-    /* Light theme override */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --glass-bg: hsl(var(--background) / 0.7);
-    --glass-border: hsl(var(--border));
+    /* Light theme with enhanced cosmic vibes */
+    --background: 210 20% 98%;
+    --foreground: 240 15% 15%;
+    --card: 210 40% 96%;
+    --card-foreground: 240 15% 15%;
+    --popover: 210 40% 96%;
+    --popover-foreground: 240 15% 15%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 262 83% 70%;
+    --secondary: 210 30% 90%;
+    --secondary-foreground: 240 15% 25%;
+    --muted: 210 30% 92%;
+    --muted-foreground: 240 8% 45%;
+    --accent: 195 85% 45%;
+    --accent-foreground: 0 0% 98%;
+    --accent-glow: 195 85% 60%;
+    --border: 210 25% 85%;
+    --input: 210 25% 88%;
+    --ring: 262 83% 58%;
+    --cosmic-purple: 262 83% 58%;
+    --cosmic-blue: 195 85% 45%;
+    --cosmic-pink: 316 65% 65%;
+    --cosmic-green: 142 65% 50%;
+    --cosmic-orange: 25 85% 50%;
+    --gradient-cosmic: linear-gradient(135deg, hsl(var(--cosmic-purple)), hsl(var(--cosmic-blue)));
+    --gradient-aurora: linear-gradient(135deg, hsl(var(--cosmic-pink)), hsl(var(--cosmic-purple)), hsl(var(--cosmic-blue)));
+    --gradient-nebula: linear-gradient(180deg, hsl(var(--cosmic-blue) / 0.1), hsl(var(--cosmic-purple) / 0.1));
+    --glass-bg: hsl(var(--background) / 0.8);
+    --glass-border: hsl(var(--border) / 0.6);
+    --shadow-cosmic: 0 8px 32px hsl(var(--cosmic-purple) / 0.15);
+    --shadow-neon: 0 0 30px hsl(var(--cosmic-blue) / 0.3);
   }
 }
 
@@ -70,10 +91,11 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background-image: 
-      radial-gradient(circle at 20% 50%, hsl(var(--cosmic-purple) / 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, hsl(var(--cosmic-blue) / 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 40% 80%, hsl(var(--cosmic-pink) / 0.05) 0%, transparent 50%);
+      radial-gradient(circle at 20% 50%, hsl(var(--cosmic-purple) / 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, hsl(var(--cosmic-blue) / 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 40% 80%, hsl(var(--cosmic-pink) / 0.04) 0%, transparent 50%);
     background-attachment: fixed;
+    transition: background-color 0.3s ease;
   }
 
   /* Custom scrollbar */

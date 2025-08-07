@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { 
   BookOpen, 
   Brain, 
@@ -99,6 +100,10 @@ export const Navigation = ({ activeSection, onSectionChange }: NavigationProps) 
           </div>
 
           <div className="mt-8 p-4 glass rounded-lg border border-cosmic-purple/20">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs text-muted-foreground">Theme</span>
+              <ThemeToggle />
+            </div>
             <div className="text-xs text-muted-foreground mb-2">
               Storage Status
             </div>
