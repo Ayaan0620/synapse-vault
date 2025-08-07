@@ -14,7 +14,168 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      exam_results: {
+        Row: {
+          answers: Json | null
+          completed_at: string
+          exam_name: string
+          id: string
+          score: number
+          time_taken_minutes: number | null
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          completed_at?: string
+          exam_name: string
+          id?: string
+          score: number
+          time_taken_minutes?: number | null
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          answers?: Json | null
+          completed_at?: string
+          exam_name?: string
+          id?: string
+          score?: number
+          time_taken_minutes?: number | null
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      flashcards: {
+        Row: {
+          back_text: string
+          created_at: string
+          difficulty: number | null
+          front_text: string
+          id: string
+          last_reviewed: string | null
+          next_review: string | null
+          review_count: number | null
+          subject: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          back_text: string
+          created_at?: string
+          difficulty?: number | null
+          front_text: string
+          id?: string
+          last_reviewed?: string | null
+          next_review?: string | null
+          review_count?: number | null
+          subject?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          back_text?: string
+          created_at?: string
+          difficulty?: number | null
+          front_text?: string
+          id?: string
+          last_reviewed?: string | null
+          next_review?: string | null
+          review_count?: number | null
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          subject: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          subject?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          subject?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          completed_at: string
+          duration_minutes: number | null
+          id: string
+          score: number | null
+          session_type: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          duration_minutes?: number | null
+          id?: string
+          score?: number | null
+          session_type: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          duration_minutes?: number | null
+          id?: string
+          score?: number | null
+          session_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
