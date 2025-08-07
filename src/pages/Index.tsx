@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Navigation } from "@/components/Navigation";
 import { HomeSection } from "@/components/HomeSection";
 import { NotesSection } from "@/components/NotesSection";
@@ -9,9 +11,23 @@ import { PYQSection } from "@/components/PYQSection";
 import { DoubtsClearingSection } from "@/components/DoubtsClearingSection";
 import { StudyPlannerSection } from "@/components/StudyPlannerSection";
 import { GameifiedLearningSection } from "@/components/GameifiedLearningSection";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
+  const { user, loading } = useAuth();
   const [activeSection, setActiveSection] = useState("home");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
   const renderSection = () => {
     switch (activeSection) {

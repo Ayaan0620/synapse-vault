@@ -355,7 +355,7 @@ export const PYQSection = ({ onSectionChange }: PYQSectionProps) => {
 
   if (currentMode === "menu") {
     return (
-      <div className="min-h-screen bg-gradient-cosmic p-6">
+      <div className="min-h-screen bg-background text-foreground p-6">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Header with enhanced styling */}
           <div className="text-center space-y-6 relative">
@@ -592,7 +592,7 @@ export const PYQSection = ({ onSectionChange }: PYQSectionProps) => {
 
   // Main Question Interface
   return (
-    <div className="min-h-screen bg-gradient-cosmic p-6">
+    <div className="min-h-screen bg-background text-foreground p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">

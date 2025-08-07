@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   BookOpen, 
   Brain, 
@@ -15,7 +16,9 @@ import {
   Layers,
   MessageCircle,
   Calendar,
-  Trophy
+  Trophy,
+  LogOut,
+  User
 } from "lucide-react";
 
 interface NavigationProps {
@@ -25,6 +28,7 @@ interface NavigationProps {
 
 export const Navigation = ({ activeSection, onSectionChange }: NavigationProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   const navItems = [
     { id: "home", label: "Home", icon: Home },
@@ -99,19 +103,48 @@ export const Navigation = ({ activeSection, onSectionChange }: NavigationProps) 
             })}
           </div>
 
-          <div className="mt-8 p-4 glass rounded-lg border border-cosmic-purple/20">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs text-muted-foreground">Theme</span>
-              <ThemeToggle />
-            </div>
-            <div className="text-xs text-muted-foreground mb-2">
-              Storage Status
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 bg-secondary rounded-full flex-1">
-                <div className="h-full bg-gradient-cosmic rounded-full w-3/4"></div>
+          <div className="mt-8 space-y-4">
+            {/* User Profile Card */}
+            <div className="p-4 glass rounded-lg border border-cosmic-purple/20">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-cosmic flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {user?.email}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Student
+                  </p>
+                </div>
               </div>
-              <span className="text-xs">75%</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={signOut}
+              >
+                <LogOut className="mr-2 h-3 w-3" />
+                Sign Out
+              </Button>
+            </div>
+
+            {/* Theme and Storage */}
+            <div className="p-4 glass rounded-lg border border-cosmic-purple/20">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
+              <div className="text-xs text-muted-foreground mb-2">
+                Storage Status
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 bg-secondary rounded-full flex-1">
+                  <div className="h-full bg-gradient-cosmic rounded-full w-3/4"></div>
+                </div>
+                <span className="text-xs">75%</span>
+              </div>
             </div>
           </div>
         </div>
