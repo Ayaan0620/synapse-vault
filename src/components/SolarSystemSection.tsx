@@ -9,6 +9,7 @@ import ForceGraph2D, { NodeObject, LinkObject } from "react-force-graph-2d";
 import { toast } from "sonner";
 import QuillEditor from "./RichEditor";
 import { useTheme } from "next-themes"; // <-- 1. IMPORT THE THEME HOOK
+import { getNotes, subscribeNotes, upsertNote, removeNote, SharedNote } from "@/store/notesStore";
 
 // --- INTERFACES ---
 interface NoteData { id: number; title: string; content: string; }
@@ -25,7 +26,10 @@ const initialConnections = [{ source: 1, target: 2 }, { source: 1, target: 3 }];
 // --- THE MAIN COMPONENT ---
 export const SolarSystemSection = ({ onSectionChange }: { onSectionChange?: (section: string) => void }) => {
   const fgRef = useRef<any>();
-  const [nodes, setNodes] = useState<NoteData[]>(initialNotes);
+  const [nodes, setNodes] = useState<NoteData[]>(() => {
+    const shared = getNotes();
+    return shared.length ? shared.map(n => ({ id: Number(n.id), title: n.title, content: n.content })) : initialNotes;
+  });
   const [connections, setConnections] = useState(initialConnections);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
@@ -61,6 +65,13 @@ export const SolarSystemSection = ({ onSectionChange }: { onSectionChange?: (sec
   useEffect(() => { fgRef.current?.d3ReheatSimulation(); }, [nodes, connections]);
   const graphData = useMemo(() => ({ nodes, links: connections }), [nodes, connections]);
 
+  useEffect(() => {
+    const unsub = subscribeNotes((shared) => {
+      setNodes((shared as SharedNote[]).map(n => ({ id: Number(n.id), title: n.title, content: n.content })));
+    });
+    return () => unsub();
+  }, []);
+
   const handleNodeClick = useCallback((node: GraphNode) => {
     if (isLinking) {
       if (!linkSource) { setLinkSource(Number(node.id)); toast.info(`Selected "${node.title}".`); }
@@ -92,10 +103,13 @@ export const SolarSystemSection = ({ onSectionChange }: { onSectionChange?: (sec
         nodeToUpdate.title = formData.title;
         nodeToUpdate.content = formData.content;
         setNodes([...nodes]);
+        upsertNote({ id: String(currentNode.id), title: formData.title, content: formData.content });
         toast.success("Note updated.");
       }
     } else {
       const newId = Date.now();
+      const sharedNote: SharedNote = { id: String(newId), title: formData.title, content: formData.content, createdAt: new Date().toISOString().split('T')[0], isStarred: false };
+      upsertNote(sharedNote);
       setNodes(prev => [...prev, { id: newId, ...formData }]);
       toast.success("Note added!");
     }
@@ -106,6 +120,7 @@ export const SolarSystemSection = ({ onSectionChange }: { onSectionChange?: (sec
     if (!currentNode) return;
     setConnections(connections.filter(c => c.source !== currentNode.id && c.target !== currentNode.id));
     setNodes(nodes.filter(n => n.id !== currentNode.id));
+    removeNote(String(currentNode.id));
     toast.info("Note deleted.");
     setIsSheetOpen(false);
   };

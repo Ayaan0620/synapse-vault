@@ -19,6 +19,7 @@ import {
   MicOff
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -89,35 +90,18 @@ export const DoubtsClearingSection = ({ onSectionChange }: DoubtsClearingSection
   }, [messages]);
 
   const generateAIResponse = async (userMessage: string): Promise<string> => {
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-    
-    // Simple AI response simulation based on keywords
-    const message = userMessage.toLowerCase();
-    
-    if (message.includes("math") || message.includes("equation") || message.includes("calculate")) {
-      return "I'd be happy to help with your math problem! Could you share the specific equation or concept you're working with? I can break it down step by step and explain the methodology.";
-    } else if (message.includes("physics") || message.includes("force") || message.includes("energy")) {
-      return "Physics can be challenging but fascinating! Let me help you understand this concept. Could you provide more details about the specific topic or problem you're dealing with? I can explain the principles and provide examples.";
-    } else if (message.includes("chemistry") || message.includes("reaction") || message.includes("molecule")) {
-      return "Chemistry involves understanding how matter behaves at the molecular level. What specific chemistry concept would you like me to explain? I can help with reactions, bonding, or any other chemistry topic.";
-    } else if (message.includes("biology") || message.includes("cell") || message.includes("organism")) {
-      return "Biology is the study of life and living organisms. I can help explain biological processes, systems, and concepts. What specific area of biology are you studying?";
-    } else if (message.includes("programming") || message.includes("code") || message.includes("algorithm")) {
-      return "Programming concepts can be tricky at first, but they become clearer with practice. What programming language or concept are you working with? I can provide explanations and examples.";
-    } else {
-      return `That's an interesting question about ${selectedSubject}! I understand you're asking about "${userMessage}". Let me provide a comprehensive explanation:
-
-Based on your question, here are the key points to consider:
-
-1. **Core Concept**: The fundamental principle behind this topic involves understanding the relationship between different variables and factors.
-
-2. **Practical Application**: This concept is commonly used in real-world scenarios and can be applied to solve various problems.
-
-3. **Common Mistakes**: Students often confuse this with similar concepts, so it's important to understand the distinctions.
-
-Would you like me to elaborate on any specific aspect or provide some practice problems to help solidify your understanding?`;
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-doubts', {
+        body: { prompt: userMessage, subject: selectedSubject },
+      });
+      if (error) throw error;
+      if (data?.generatedText) return data.generatedText as string;
+    } catch (e) {
+      console.error('AI error:', e);
     }
+
+    // Fallback simple response
+    return `I’m using a free AI gateway. You asked about "${userMessage}" in ${selectedSubject}. Could you provide more specifics?`;
   };
 
   const handleSendMessage = async () => {

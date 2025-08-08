@@ -17,6 +17,7 @@ import {
   Edit3
 } from "lucide-react";
 import gsap from "gsap";
+import { getNotes, saveNotes, subscribeNotes } from "@/store/notesStore";
 
 interface Note {
   id: string;
@@ -84,6 +85,19 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
     return () => ctx.revert();
   }, [notes]);
 
+  // Sync with shared notes store
+  useEffect(() => {
+    const stored = getNotes();
+    if (stored.length) {
+      setNotes(stored as any);
+    } else {
+      // Seed store with current local sample notes
+      saveNotes(notes as any);
+    }
+    const unsub = subscribeNotes((n) => setNotes(n as any));
+    return () => unsub();
+  }, []);
+
   const filteredNotes = notes.filter(note => 
     note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -101,7 +115,9 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
         isStarred: false,
         aiGenerated: false
       };
-      setNotes([note, ...notes]);
+      const updated = [note, ...notes];
+      setNotes(updated);
+      saveNotes(updated as any);
       setNewNote({ title: "", content: "", tags: "" });
       setIsCreating(false);
       setSelectedNote(note);
@@ -110,7 +126,7 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
 
   const updateNote = () => {
     if (selectedNote && editingNote.title.trim() && editingNote.content.trim()) {
-      setNotes(notes.map(note => 
+      const updated = notes.map(note => 
         note.id === selectedNote.id 
           ? {
               ...note,
@@ -119,7 +135,9 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
               tags: editingNote.tags.split(",").map(tag => tag.trim()).filter(Boolean)
             }
           : note
-      ));
+      );
+      setNotes(updated);
+      saveNotes(updated as any);
       setSelectedNote({
         ...selectedNote,
         title: editingNote.title,
@@ -147,9 +165,11 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
   };
 
   const toggleStar = (noteId: string) => {
-    setNotes(notes.map(note => 
+    const updated = notes.map(note => 
       note.id === noteId ? { ...note, isStarred: !note.isStarred } : note
-    ));
+    );
+    setNotes(updated);
+    saveNotes(updated as any);
     if (selectedNote && selectedNote.id === noteId) {
       setSelectedNote({ ...selectedNote, isStarred: !selectedNote.isStarred });
     }
@@ -176,7 +196,9 @@ export const NotesSection = ({ onSectionChange }: NotesSectionProps) => {
       aiGenerated: true
     };
     
-    setNotes([aiNote, ...notes]);
+    const updated = [aiNote, ...notes];
+    setNotes(updated);
+    saveNotes(updated as any);
     setSelectedNote(aiNote);
   };
 

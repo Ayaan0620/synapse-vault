@@ -131,9 +131,17 @@ export const FormulasSection = ({ onSectionChange }: FormulasSectionProps) => {
   const [selectedSubject, setSelectedSubject] = useState("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState("all");
   const [selectedFormula, setSelectedFormula] = useState<Formula | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newFormula, setNewFormula] = useState({
+    name: "",
+    formula: "",
+    description: "",
+    category: "",
+    subject: "",
+    difficulty: "basic" as const,
+  });
 
   const formulasRef = useRef<HTMLDivElement>(null);
-
   const subjects = Array.from(new Set(formulas.map(f => f.subject)));
   const categories = Array.from(new Set(formulas.map(f => f.category)));
 
@@ -240,6 +248,58 @@ export const FormulasSection = ({ onSectionChange }: FormulasSectionProps) => {
             <div className="text-xs text-muted-foreground">Starred</div>
           </Card>
         </div>
+
+        <Button variant="cosmic" size="sm" className="w-full mb-4" onClick={() => setIsAdding(v => !v)}>
+          <Plus className="h-4 w-4 mr-2" /> {isAdding ? 'Cancel' : 'Add Formula'}
+        </Button>
+
+        {isAdding && (
+          <div className="space-y-2 mb-4">
+            <Input placeholder="Name" value={newFormula.name} onChange={(e) => setNewFormula({ ...newFormula, name: e.target.value })} />
+            <Input placeholder="Formula" value={newFormula.formula} onChange={(e) => setNewFormula({ ...newFormula, formula: e.target.value })} />
+            <Input placeholder="Description" value={newFormula.description} onChange={(e) => setNewFormula({ ...newFormula, description: e.target.value })} />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Subject" value={newFormula.subject} onChange={(e) => setNewFormula({ ...newFormula, subject: e.target.value })} />
+              <Input placeholder="Category" value={newFormula.category} onChange={(e) => setNewFormula({ ...newFormula, category: e.target.value })} />
+            </div>
+            <select
+              value={newFormula.difficulty}
+              onChange={(e) => setNewFormula({ ...newFormula, difficulty: e.target.value as any })}
+              className="w-full glass border border-cosmic-purple/30 rounded-md px-3 py-2 bg-background text-foreground"
+            >
+              <option value="basic">Basic</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+            <Button
+              variant="neon"
+              size="sm"
+              onClick={() => {
+                if (!newFormula.name || !newFormula.formula) return;
+                const f: Formula = {
+                  id: Date.now().toString(),
+                  name: newFormula.name,
+                  formula: newFormula.formula,
+                  description: newFormula.description,
+                  category: newFormula.category || 'General',
+                  subject: newFormula.subject || 'General',
+                  difficulty: newFormula.difficulty,
+                  variables: [],
+                  examples: [],
+                  isStarred: false,
+                  lastUsed: new Date().toISOString().split('T')[0],
+                };
+                setFormulas([f, ...formulas]);
+                setIsAdding(false);
+                setNewFormula({ name: '', formula: '', description: '', category: '', subject: '', difficulty: 'basic' });
+                setSelectedFormula(f);
+              }}
+            >
+              Save Formula
+            </Button>
+          </div>
+        )}
+
 
         <div ref={formulasRef} className="space-y-2 overflow-y-auto max-h-96">
           {filteredFormulas.map((formula) => (
