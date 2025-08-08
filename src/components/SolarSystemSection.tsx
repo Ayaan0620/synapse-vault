@@ -12,7 +12,7 @@ import { useTheme } from "next-themes"; // <-- 1. IMPORT THE THEME HOOK
 
 // --- INTERFACES ---
 interface NoteData { id: number; title: string; content: string; }
-interface GraphNode extends NodeObject, NoteData {}
+type GraphNode = NoteData & NodeObject & { x?: number; y?: number; id: number };
 
 // --- INITIAL DATA ---
 const initialNotes: NoteData[] = [
@@ -23,7 +23,7 @@ const initialNotes: NoteData[] = [
 const initialConnections = [{ source: 1, target: 2 }, { source: 1, target: 3 }];
 
 // --- THE MAIN COMPONENT ---
-export const SolarSystemSection = () => {
+export const SolarSystemSection = ({ onSectionChange }: { onSectionChange?: (section: string) => void }) => {
   const fgRef = useRef<any>();
   const [nodes, setNodes] = useState<NoteData[]>(initialNotes);
   const [connections, setConnections] = useState(initialConnections);
@@ -63,16 +63,16 @@ export const SolarSystemSection = () => {
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     if (isLinking) {
-      if (!linkSource) { setLinkSource(node.id); toast.info(`Selected "${node.title}".`); }
+      if (!linkSource) { setLinkSource(Number(node.id)); toast.info(`Selected "${node.title}".`); }
       else {
         if (linkSource !== node.id && !connections.some(c => (c.source === linkSource && c.target === node.id) || (c.source === node.id && c.target === linkSource))) {
-            setConnections(prev => [...prev, { source: linkSource, target: node.id }]);
+            setConnections(prev => [...prev, { source: linkSource, target: Number(node.id) }]);
             toast.success("Nodes linked!");
         }
         setIsLinking(false); setLinkSource(null);
       }
     } else {
-      setCurrentNode(node);
+      setCurrentNode({ id: Number(node.id), title: node.title, content: node.content });
       setFormData({ title: node.title, content: node.content });
       setIsSheetOpen(true);
     }

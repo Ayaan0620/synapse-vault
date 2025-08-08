@@ -5,7 +5,7 @@ import ReactQuill from 'react-quill';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-window.katex = katex;
+(window as any).katex = katex;
 
 interface EditorProps {
   value: string;
@@ -32,8 +32,7 @@ export default function QuillEditor({ value, onChange }: EditorProps) {
         modules={modules}
         className="h-[calc(100% - 42px)]"
       />
-      {/* THIS STYLESHEET IS NOW FULLY THEME-AWARE */}
-      <style jsx global>{`
+      <style>{`
         .ql-toolbar {
           background-color: hsl(var(--muted));
           border-top-left-radius: 0.375rem;
