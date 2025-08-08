@@ -1,328 +1,181 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// src/components/SolarSystemSection.tsx
+
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { 
-  ReactFlow,
-  MiniMap,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
-  Edge,
-  Node,
-  Handle,
-  Position
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { 
-  Plus, 
-  Edit3, 
-  Save, 
-  X, 
-  Search,
-  BookOpen,
-  Brain,
-  Network
-} from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Plus, Trash2, Link2, X } from "lucide-react";
+import ForceGraph2D, { NodeObject, LinkObject } from "react-force-graph-2d";
 import { toast } from "sonner";
+import QuillEditor from "./RichEditor";
+import { useTheme } from "next-themes"; // <-- 1. IMPORT THE THEME HOOK
 
-interface NoteNodeData extends Record<string, unknown> {
-  title: string;
-  content: string;
-  tags: string[];
-}
+// --- INTERFACES ---
+interface NoteData { id: number; title: string; content: string; }
+interface GraphNode extends NodeObject, NoteData {}
 
-interface SolarSystemSectionProps {
-  onSectionChange: (section: string) => void;
-}
-
-// Custom Note Node Component
-const NoteNode = ({ data, id }: { data: NoteNodeData; id: string }) => {
-  return (
-    <div className="glass px-4 py-3 min-w-[200px] max-w-[250px] rounded-lg border-primary/30 hover:border-primary/60 transition-all duration-300 hover:scale-105">
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-primary border-2 border-background" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-primary border-2 border-background" />
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-primary border-2 border-background" />
-      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-primary border-2 border-background" />
-      
-      <div className="space-y-2">
-        <h3 className="font-semibold text-foreground text-sm line-clamp-2">
-          {String(data.title)}
-        </h3>
-        <p className="text-xs text-muted-foreground line-clamp-3">
-          {String(data.content)}
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {Array.isArray(data.tags) && data.tags.map((tag, index) => (
-            <Badge key={index} variant="secondary" className="text-xs px-1 py-0">
-              {String(tag)}
-            </Badge>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const nodeTypes = {
-  noteNode: NoteNode,
-};
-
-const initialNodes: Node<NoteNodeData>[] = [
-  {
-    id: '1',
-    type: 'noteNode',
-    position: { x: 250, y: 100 },
-    data: { title: 'Physics Notes', content: 'Quantum mechanics and wave functions', tags: ['physics', 'quantum'] },
-  },
-  {
-    id: '2',
-    type: 'noteNode',
-    position: { x: 100, y: 300 },
-    data: { title: 'Mathematics', content: 'Calculus and differential equations', tags: ['math', 'calculus'] },
-  },
-  {
-    id: '3',
-    type: 'noteNode',
-    position: { x: 400, y: 300 },
-    data: { title: 'Chemistry', content: 'Organic chemistry reactions', tags: ['chemistry', 'organic'] },
-  },
+// --- INITIAL DATA ---
+const initialNotes: NoteData[] = [
+  { id: 1, title: 'Welcome!', content: '<p>Click a node to edit it in the sidebar!</p>' },
+  { id: 2, title: 'Math Formulas', content: '<p>You can now add math using the [fx] button: <span class="ql-formula" data-value="e=mc^2"></span></p>' },
+  { id: 3, title: 'Theming', content: '<p>This app now supports light and dark modes!</p>' },
 ];
+const initialConnections = [{ source: 1, target: 2 }, { source: 1, target: 3 }];
 
-const initialEdges: Edge[] = [
-  { 
-    id: 'e1-2', 
-    source: '1', 
-    target: '2', 
-    type: 'smoothstep',
-    animated: true,
-    style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
-    label: 'related'
-  },
-  { 
-    id: 'e1-3', 
-    source: '1', 
-    target: '3', 
-    type: 'smoothstep',
-    style: { stroke: 'hsl(var(--accent))', strokeWidth: 2 },
-    label: 'connected'
-  },
-];
+// --- THE MAIN COMPONENT ---
+export const SolarSystemSection = () => {
+  const fgRef = useRef<any>();
+  const [nodes, setNodes] = useState<NoteData[]>(initialNotes);
+  const [connections, setConnections] = useState(initialConnections);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkSource, setLinkSource] = useState<number | null>(null);
+  const [currentNode, setCurrentNode] = useState<NoteData | null>(null);
+  const [formData, setFormData] = useState({ title: '', content: '' });
 
-export const SolarSystemSection = ({ onSectionChange }: SolarSystemSectionProps) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes as Node[]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedNode, setSelectedNode] = useState<Node<NoteNodeData> | null>(null);
-  const [editingNode, setEditingNode] = useState<Node<NoteNodeData> | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newNode, setNewNode] = useState({ title: '', content: '', tags: '' });
-  
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme(); // <-- 2. USE THE HOOK TO GET THE CURRENT THEME
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
-
-  const addNode = () => {
-    const newNodeData: Node<NoteNodeData> = {
-      id: `${Date.now()}`,
-      type: 'noteNode',
-      position: { x: Math.random() * 400, y: Math.random() * 400 },
-      data: {
-        title: newNode.title,
-        content: newNode.content,
-        tags: newNode.tags.split(',').map(tag => tag.trim()),
-      },
-    };
-
-    setNodes((nds) => [...nds, newNodeData as Node]);
-    setNewNode({ title: '', content: '', tags: '' });
-    setIsCreating(false);
-    toast.success("Note added to knowledge graph!");
-  };
-
-  const updateNode = () => {
-    if (!editingNode) return;
-    
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === editingNode.id) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              title: newNode.title,
-              content: newNode.content,
-              tags: newNode.tags.split(',').map(tag => tag.trim()),
-            },
-          } as Node;
-        }
-        return node;
-      })
-    );
-    
-    setEditingNode(null);
-    setNewNode({ title: '', content: '', tags: '' });
-    toast.success("Note updated!");
-  };
-
-  const filteredNodes = nodes.filter((node) => {
-    const nodeData = node.data as Record<string, unknown>;
-    const title = String(nodeData.title || '');
-    const content = String(nodeData.content || '');
-    const tags = Array.isArray(nodeData.tags) ? nodeData.tags : [];
-    
-    return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           tags.some((tag: unknown) => String(tag).toLowerCase().includes(searchTerm.toLowerCase()));
+  // --- THEME-AWARE COLOR STATE FOR THE CANVAS ---
+  const [themeColors, setThemeColors] = useState({
+    node: '#000000', text: '#000000', link: '#000000',
+    nodeHighlight: '#000000', particle: '#000000',
   });
 
+  // FIXED: This effect now re-runs whenever the `theme` changes
+  useEffect(() => {
+    // We need a slight delay to ensure the CSS variables have been updated by the browser
+    const timer = setTimeout(() => {
+        const computedStyle = getComputedStyle(document.documentElement);
+        setThemeColors({
+            node: `hsl(${computedStyle.getPropertyValue('--primary')})`,
+            nodeHighlight: `hsl(${computedStyle.getPropertyValue('--accent')})`,
+            text: `hsl(${computedStyle.getPropertyValue('--foreground')})`,
+            link: `hsla(${computedStyle.getPropertyValue('--foreground')}, 0.2)`,
+            particle: `hsl(${computedStyle.getPropertyValue('--foreground')})`
+        });
+    }, 50); // 50ms delay is usually enough
+
+    return () => clearTimeout(timer); // Cleanup the timer
+  }, [theme]); // <-- 3. ADD `theme` AS A DEPENDENCY
+
+  useEffect(() => { fgRef.current?.d3ReheatSimulation(); }, [nodes, connections]);
+  const graphData = useMemo(() => ({ nodes, links: connections }), [nodes, connections]);
+
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    if (isLinking) {
+      if (!linkSource) { setLinkSource(node.id); toast.info(`Selected "${node.title}".`); }
+      else {
+        if (linkSource !== node.id && !connections.some(c => (c.source === linkSource && c.target === node.id) || (c.source === node.id && c.target === linkSource))) {
+            setConnections(prev => [...prev, { source: linkSource, target: node.id }]);
+            toast.success("Nodes linked!");
+        }
+        setIsLinking(false); setLinkSource(null);
+      }
+    } else {
+      setCurrentNode(node);
+      setFormData({ title: node.title, content: node.content });
+      setIsSheetOpen(true);
+    }
+  }, [isLinking, linkSource, connections]);
+
+  const handleAddClick = () => {
+    setIsLinking(false); setCurrentNode(null);
+    setFormData({ title: '', content: '<p><br></p>' });
+    setIsSheetOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!formData.title.trim()) return toast.error("Title is required.");
+    if (currentNode) {
+      const nodeToUpdate = nodes.find(n => n.id === currentNode.id);
+      if (nodeToUpdate) {
+        nodeToUpdate.title = formData.title;
+        nodeToUpdate.content = formData.content;
+        setNodes([...nodes]);
+        toast.success("Note updated.");
+      }
+    } else {
+      const newId = Date.now();
+      setNodes(prev => [...prev, { id: newId, ...formData }]);
+      toast.success("Note added!");
+    }
+    setIsSheetOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (!currentNode) return;
+    setConnections(connections.filter(c => c.source !== currentNode.id && c.target !== currentNode.id));
+    setNodes(nodes.filter(n => n.id !== currentNode.id));
+    toast.info("Note deleted.");
+    setIsSheetOpen(false);
+  };
+
+  const toggleLinking = () => {
+    setLinkSource(null); setIsLinking(!isLinking);
+    toast.dismiss(); if (!isLinking) toast.info("Link Mode Activated.");
+  };
+
+  const renderNode = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const label = node.title, fontSize = 12 / globalScale, r = 6;
+    ctx.beginPath(); ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI, false);
+    ctx.fillStyle = (isLinking && linkSource === node.id) ? themeColors.nodeHighlight : themeColors.node;
+    ctx.shadowColor = (isLinking && linkSource === node.id) ? themeColors.nodeHighlight : themeColors.node;
+    ctx.shadowBlur = (isLinking && linkSource === node.id) ? 20 : 10;
+    ctx.fill(); ctx.shadowBlur = 0;
+    ctx.font = `${fontSize}px Sans-Serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = themeColors.text;
+    ctx.fillText(label, node.x!, node.y! + r + 10);
+  }, [isLinking, linkSource, themeColors]);
+
   return (
-    <div className="min-h-screen bg-gradient-cosmic p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold gradient-text">Knowledge Graph</h1>
-          <p className="text-muted-foreground">Visualize and connect your learning concepts</p>
-        </div>
-
-        {/* Controls */}
-        <div className="flex flex-wrap gap-4 justify-between items-center">
-          <div className="flex gap-4 items-center">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search notes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-64"
-              />
-            </div>
-            
-            <Dialog open={isCreating} onOpenChange={setIsCreating}>
-              <DialogTrigger asChild>
-                <Button variant="cosmic" className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Note
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Note</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Input
-                    placeholder="Note title..."
-                    value={newNode.title}
-                    onChange={(e) => setNewNode({ ...newNode, title: e.target.value })}
-                  />
-                  <Textarea
-                    placeholder="Note content..."
-                    value={newNode.content}
-                    onChange={(e) => setNewNode({ ...newNode, content: e.target.value })}
-                    rows={4}
-                  />
-                  <Input
-                    placeholder="Tags (comma separated)..."
-                    value={newNode.tags}
-                    onChange={(e) => setNewNode({ ...newNode, tags: e.target.value })}
-                  />
-                  <Button onClick={addNode} className="w-full" variant="cosmic">
-                    Create Note
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="flex gap-2">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Network className="w-3 h-3" />
-              {nodes.length} Notes
-            </Badge>
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Brain className="w-3 h-3" />
-              {edges.length} Connections
-            </Badge>
-          </div>
-        </div>
-
-        {/* Knowledge Graph */}
-        <Card className="glass-card border-primary/30 h-[600px]">
-          <CardContent className="p-0 h-full">
-            <div className="w-full h-full" ref={reactFlowWrapper}>
-              <ReactFlow
-                nodes={searchTerm ? filteredNodes : nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                nodeTypes={nodeTypes}
-                fitView
-                className="cosmic-flow"
-                style={{ background: 'transparent' }}
-              >
-                <Background color="hsl(var(--primary) / 0.1)" />
-                <MiniMap 
-                  nodeColor="hsl(var(--primary))"
-                  className="glass border border-primary/20"
-                />
-                <Controls className="glass border border-primary/20" />
-              </ReactFlow>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card className="glass-card border-primary/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-primary" />
-                Total Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{nodes.length}</div>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-accent/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Network className="w-4 h-4 text-accent" />
-                Connections
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-accent">{edges.length}</div>
-            </CardContent>
-          </Card>
-          
-          <Card className="glass-card border-secondary/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Brain className="w-4 h-4 text-secondary" />
-                Graph Density
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-secondary">
-                {nodes.length > 1 ? Math.round((edges.length / (nodes.length * (nodes.length - 1) / 2)) * 100) : 0}%
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="w-screen h-screen bg-background text-foreground relative">
+      <div className="absolute top-4 left-4 z-10 flex gap-2">
+        <Button onClick={handleAddClick}><Plus className="w-4 h-4 mr-2" /> Add Note</Button>
+        <Button onClick={toggleLinking} variant={isLinking ? "secondary" : "outline"} className={isLinking ? "ring-2 ring-accent" : ""}>
+          {isLinking ? <X className="w-4 h-4 mr-2" /> : <Link2 className="w-4 h-4 mr-2" />}
+          {isLinking ? "Cancel" : "Link Notes"}
+        </Button>
       </div>
+
+      <ForceGraph2D
+        ref={fgRef}
+        graphData={graphData}
+        nodeCanvasObject={renderNode}
+        onNodeClick={node => handleNodeClick(node as GraphNode)}
+        linkColor={() => themeColors.link}
+        linkWidth={1}
+        linkDirectionalParticles={1}
+        linkDirectionalParticleWidth={2}
+        linkDirectionalParticleColor={() => themeColors.particle}
+      />
+      
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="bg-background border-l border-border sm:max-w-2xl w-full flex flex-col">
+          <SheetHeader>
+            <SheetTitle>
+              <Input placeholder="Note Title" value={formData.title} onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))} className="bg-transparent border-none text-2xl font-bold focus-visible:ring-0 p-0" />
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="flex-grow my-4 overflow-y-auto">
+             <QuillEditor
+                value={formData.content}
+                onChange={(newContent) => setFormData(prev => ({...prev, content: newContent}))}
+            />
+          </div>
+
+          <SheetFooter className="pt-4 border-t border-border">
+            <div className="flex justify-between w-full">
+              {currentNode && (<Button variant="destructive" onClick={handleDelete}><Trash2 className="w-4 h-4 mr-2" /> Delete</Button>)}
+              <div className="flex-grow"></div>
+              <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setIsSheetOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSave}>Save</Button>
+              </div>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
